@@ -1,0 +1,52 @@
+!pip install pytube
+!pip install -U openai-whisper
+!pip install pydub
+!pip install simple_diarizer
+pip uninstall torch -y
+
+from pytube import YouTube
+import whisper
+from pydub import AudioSegment
+from simple_diarizer.diarizer import Diarizer
+
+model = whisper.load_model("medium")
+audio_file_name = "audio.mp3"
+
+def get_transcription(audio_file_name) -> str:
+  audio = whisper.load_audio(audio_file_name)
+  audio = whisper.pad_or_trim(audio)
+
+  mel = whisper.log_mel_spectrogram(audio).to(model.device)
+
+  options = whisper.DecodingOptions(fp16 = False)
+  result = whisper.decode(model, mel, options)
+
+  return result.text
+def get_slice_audio(audio_file_name, begin: int, end: int, trimmed_audio_name: str, format_audio):
+  try:
+      audio = AudioSegment.from_file(audio_file_name, "mp3")
+  except:
+      audio = AudioSegment.from_file(audio_file_name, format="mp4")
+
+  trimmed_audio = audio[begin: end]
+  trimmed_audio.export(trimmed_audio_name, format=format_audio)
+  
+our_audio = "our_audio.wav"
+diarization = Diarizer(embed_model='xvec', cluster_method='sc')
+
+segments = diarization.diarize("fucking.wav", threshold=0)
+
+
+cnt_segments = len(segments)
+answer = []
+i, j = 0, 0
+while j < cnt_segments:
+  while j < cnt_segments and segments[j]["label"] == segments[i]["label"]:
+    j += 1
+  j -= 1
+
+  new_audio = "fucking.wav"
+  get_slice_audio(audio_file_name, segments[i]["start"], segments[j]["end"], new_audio, 'wav')
+  answer.append(get_transcription(new_audio))
+  i = j + 1
+
